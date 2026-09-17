@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}اینباندها{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-white">اینباندها</h2>
+            <p class="text-dark-400 text-sm mt-1">مدیریت کانفیگ‌های ورودی - تمام پروتکل‌ها و ترانسپورت‌ها</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('create-modal')">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            ایجاد اینباند
+        </button>
+    </div>
+
+    <!-- Protocol filter tabs -->
+    <div class="flex gap-1 mb-6 border-b border-dark-800">
+        <button class="tab-btn active" data-filter="all">همه</button>
+        <button class="tab-btn" data-filter="vless">VLESS</button>
+        <button class="tab-btn" data-filter="vmess">VMess</button>
+        <button class="tab-btn" data-filter="trojan">Trojan</button>
+        <button class="tab-btn" data-filter="shadowsocks">Shadowsocks</button>
+    </div>
+
+    <!-- Inbounds table -->
+    <div class="card overflow-hidden">
+        {% if inbounds %}
+        <table>
+            <thead>
+                <tr>
+                    <th>تگ</th>
+                    <th>پروتکل</th>
+                    <th>ترانسپورت</th>
+                    <th>پورت</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ ایجاد</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ib in inbounds %}
+                <tr data-protocol="{{ ib.protocol }}">
+                    <td class="font-medium text-dark-100">{{ ib.tag }}</td>
+                    <td><span class="protocol-badge protocol-{{ ib.protocol }}">{{ ib.protocol|upper }}</span></td>
+                    <td><span class="transport-badge">{{ ib.transport|upper }}</span></td>
+                    <td class="text-dark-300">{{ ib.listen_port }}</td>
+                    <td>
+                        <span class="badge {{ 'badge-green' if ib.is_active else 'badge-red' }}">
+                            {{ 'فعال' if ib.is_active else 'غیرفعال' }}
+                        </span>
+                    </td>
+                    <td class="text-dark-400 text-xs">{{ ib.created_at[:10] if ib.created_at else '-' }}</td>
+                    <td>
+                        <div class="flex gap-2">
+                            <button class="copy-btn" onclick="editInbound('{{ ib.id }}')">ویرایش</button>
+                            <button class="copy-btn" onclick="toggleInbound('{{ ib.id }}', {{ ib.is_active|lower }})">تغییر وضعیت</button>
+                            <button class="copy-btn" style="color:#ef4444" onclick="deleteInbound('{{ ib.id }}')">حذف</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 6h14M5 18h14"/></svg>
+            <p>هیچ اینبندی ایجاد نشده است. روی «ایجاد اینباند» کلیک کنید.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Create Modal -->
+    <div id="create-modal" class="modal-overlay" style="display:none">
+        <div class="modal p-6">
+            <h3 class="text-lg font-bold text-white mb-4">ایجاد اینباند جدید</h3>
+            <form id="create-form" class="space-y-4">
+                <div class="form-group">
+                    <label class="label">نام (تگ)</label>
+                    <input type="text" name="tag" class="input" placeholder="مثلاً vless-ws-443" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="label">پروتکل</label>
+                        <div class="select-wrapper">
+                            <select name="protocol" id="protocol-select" class="input" onchange="updateTransportOptions()">
+                                {% for pt in protocol_transports %}
+                                <option value="{{ pt.protocol }}">{{ pt.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">ترانسپورت</label>
+                        <div class="select-wrapper">
+                            <select name="transport" id="transport-select" class="input">
+                                <option value="ws">WebSocket</option>
+                                <option value="grpc">gRPC</option>
+                                <option value="h2">HTTP/2</option>
+                                <option value="tcp">TCP</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="label">IP گوش دادن</label>
+                        <input type="text" name="listen_ip" class="input" value="0.0.0.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="label">پورت</label>
+                        <input type="number" name="listen_port" class="input" value="443" required>
+                    </div>
+                </div>
+
+                <!-- Advanced settings -->
+                <div id="advanced-settings" class="space-y-4 border-t border-dark-800 pt-4">
+                    <p class="text-sm font-medium text-dark-200">تنظیمات پیشرفته</p>
+                    <div id="ws-settings">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="label">مسیر (Path)</label>
+                                <input type="text" id="ws-path" class="input" value="/milijon-ws">
+                            </div>
+                            <div class="form-group">
+                                <label class="label">Host Header</label>
+                                <input type="text" id="ws-host" class="input" placeholder="domain.com">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="grpc-settings" style="display:none">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="label">نام سرویس (ServiceName)</label>
+                                <input type="text" id="grpc-service" class="input" value="milijon-grpc">
+                            </div>
+                            <div class="form-group">
+                                <label class="label">حالت (Mode)</label>
+                                <div class="select-wrapper">
+                                    <select id="grpc-mode" class="input">
+                                        <option value="gun">gun</option>
+                                        <option value="multi">multi</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tls-settings">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="label">SNI</label>
+                                <input type="text" id="tls-sni" class="input" placeholder="domain.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="label">Fingerprint</label>
+                                <div class="select-wrapper">
+                                    <select id="tls-fp" class="input">
+                                        <option value="chrome">Chrome</option>
+                                        <option value="firefox">Firefox</option>
+                                        <option value="safari">Safari</option>
+                                        <option value="ios">iOS</option>
+                                        <option value="android">Android</option>
+                                        <option value="edge">Edge</option>
+                                        <option value="360">360</option>
+                                        <option value="qq">QQ</option>
+                                        <option value="random">Random</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">ALPN</label>
+                            <input type="text" id="tls-alpn" class="input" value="h2,http/1.1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="btn btn-primary flex-1">ایجاد</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-modal')">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const allCombos = {{ protocol_transports|tojson }};
+
+    function updateTransportOptions() {
+        const protocol = document.getElementById('protocol-select').value;
+        const transportSelect = document.getElementById('transport-select');
+        const transport = transportSelect.value;
+
+        // Show/hide settings based on transport
+        document.getElementById('ws-settings').style.display = (transport === 'ws' || transport === 'h2') ? 'block' : 'none';
+        document.getElementById('grpc-settings').style.display = transport === 'grpc' ? 'block' : 'none';
+        document.getElementById('tls-settings').style.display = transport === 'tcp' ? 'none' : 'block';
+    }
+
+    document.getElementById('transport-select').addEventListener('change', updateTransportOptions);
+
+    // Protocol filter
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('tbody tr').forEach(row => {
+                row.style.display = (filter === 'all' || row.dataset.protocol === filter) ? '' : 'none';
+            });
+        });
+    });
+
+    // Create form
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const transport = formData.get('transport');
+        const settings = {};
+        if (transport === 'ws' || transport === 'h2') {
+            settings.path = document.getElementById('ws-path').value;
+            settings.host = document.getElementById('ws-host').value;
+        }
+        if (transport === 'grpc') {
+            settings.serviceName = document.getElementById('grpc-service').value;
+            settings.mode = document.getElementById('grpc-mode').value;
+        }
+        if (transport !== 'tcp') {
+            settings.sni = document.getElementById('tls-sni').value;
+            settings.fp = document.getElementById('tls-fp').value;
+            settings.alpn = document.getElementById('tls-alpn').value;
+        }
+        try {
+            await apiCall('/api/inbounds', 'POST', {
+                tag: formData.get('tag'),
+                protocol: formData.get('protocol'),
+                transport: transport,
+                listen_ip: formData.get('listen_ip'),
+                listen_port: parseInt(formData.get('listen_port')),
+                settings: settings,
+            });
+            showToast('اینباند ایجاد شد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    });
+
+    async function toggleInbound(id, current) {
+        try {
+            await apiCall(`/api/inbounds/${id}`, 'PUT', { is_active: !current });
+            showToast('وضعیت تغییر کرد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteInbound(id) {
+        if (!confirmDelete('آیا از حذف این اینباند مطمئن هستید؟')) return;
+        try {
+            await apiCall(`/api/inbounds/${id}`, 'DELETE');
+            showToast('اینباند حذف شد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    function editInbound(id) {
+        showToast('به زودی...');
+    }
+
+    updateTransportOptions();
+</script>
+{% endblock %}

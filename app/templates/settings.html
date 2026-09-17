@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}تنظیمات{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-white">تنظیمات</h2>
+        <p class="text-dark-400 text-sm mt-1">تنظیمات پیشرفته پنل</p>
+    </div>
+
+    <form id="settings-form" class="space-y-6 max-w-3xl">
+        <!-- Panel Settings -->
+        <div class="card p-5">
+            <h3 class="section-title">تنظیمات پنل</h3>
+            <div class="form-row">
+                <div class="form-group"><label class="label">نام پنل</label><input type="text" name="panel_name" class="input" value="{{ settings.get('panel_name', 'Milijon Railway') }}"></div>
+                <div class="form-group"><label class="label">پورت پنل</label><input type="number" name="panel_port" class="input" value="{{ settings.get('panel_port', '2095') }}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="label">دامنه پنل</label><input type="text" name="panel_domain" class="input" value="{{ settings.get('panel_domain', '') }}"></div>
+                <div class="form-group"><label class="label">مدید گواهی SSL</label><div class="select-wrapper"><select name="panel_cert_mode" class="input"><option value="none" {{ 'selected' if settings.get('panel_cert_mode') == 'none' else '' }}>بدون SSL</option><option value="file" {{ 'selected' if settings.get('panel_cert_mode') == 'file' else '' }}>فایل</option><option value="letsencrypt" {{ 'selected' if settings.get('panel_cert_mode') == 'letsencrypt' else '' }}>Let's Encrypt</option></select></div></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="label">فایل گواهی</label><input type="text" name="panel_cert_file" class="input" value="{{ settings.get('panel_cert_file', '') }}"></div>
+                <div class="form-group"><label class="label">فایل کلید</label><input type="text" name="panel_key_file" class="input" value="{{ settings.get('panel_key_file', '') }}"></div>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="card p-5">
+            <h3 class="section-title">تنظیمات امنیت</h3>
+            <div class="form-row">
+                <div class="form-group"><label class="label">مهلت نشست (دقیقه)</label><input type="number" name="session_timeout" class="input" value="{{ settings.get('session_timeout', '30') }}"></div>
+                <div class="form-group"><label class="label">احراز هویت دو مرحله‌ای</label><div class="select-wrapper"><select name="enable_2fa" class="input"><option value="false" {{ 'selected' if settings.get('enable_2fa') == false else '' }}>غیرفعال</option><option value="true" {{ 'selected' if settings.get('enable_2fa') == true else '' }}>فعال</option></select></div></div>
+            </div>
+        </div>
+
+        <!-- Subscription Settings -->
+        <div class="card p-5">
+            <h3 class="section-title">تنظیمات سابلینک</h3>
+            <div class="form-row">
+                <div class="form-group"><label class="label">دامنه سابلینک</label><input type="text" name="sub_domain" class="input" value="{{ settings.get('sub_domain', '') }}"></div>
+                <div class="form-group"><label class="label">پورت سابلینک</label><input type="number" name="sub_port" class="input" value="{{ settings.get('sub_port', '2095') }}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="label">رمزنگاری سابلینک</label><div class="select-wrapper"><select name="sub_encrypt" class="input"><option value="true" {{ 'selected' if settings.get('sub_encrypt') != false else '' }}>فعال</option><option value="false" {{ 'selected' if settings.get('sub_encrypt') == false else '' }}>غیرفعال</option></select></div></div>
+                <div class="form-group"><label class="label">فاصله به‌روزرسانی (ساعت)</label><input type="number" name="sub_update_interval" class="input" value="{{ settings.get('sub_update_interval', '24') }}"></div>
+            </div>
+        </div>
+
+        <!-- Telegram Settings -->
+        <div class="card p-5">
+            <h3 class="section-title">تنظیمات تلگرام</h3>
+            <div class="form-group"><label class="label">Bot Token</label><input type="text" name="tg_bot_token" class="input" value="{{ settings.get('tg_bot_token', '') }}" style="direction:ltr"></div>
+            <div class="form-row">
+                <div class="form-group"><label class="label">اعلان ساخت کاربر</label><div class="select-wrapper"><select name="tg_notify_on_create" class="input"><option value="true" {{ 'selected' if settings.get('tg_notify_on_create') != false else '' }}>فعال</option><option value="false" {{ 'selected' if settings.get('tg_notify_on_create') == false else '' }}>غیرفعال</option></select></div></div>
+                <div class="form-group"><label class="label">اعلان ترافیک</label><div class="select-wrapper"><select name="tg_notify_on_traffic" class="input"><option value="false" {{ 'selected' if settings.get('tg_notify_on_traffic') == false else '' }}>غیرفعال</option><option value="true" {{ 'selected' if settings.get('tg_notify_on_traffic') == true else '' }}>فعال</option></select></div></div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">ذخیره تنظیمات</button>
+    </form>
+</div>
+<script>
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const data = {};
+    for (const [k, v] of f.entries()) {
+        if (v === 'true') data[k] = true;
+        else if (v === 'false') data[k] = false;
+        else if (!isNaN(v) && v !== '') data[k] = parseInt(v);
+        else data[k] = v;
+    }
+    try { await apiCall('/api/settings', 'PUT', data); showToast('تنظیمات ذخیره شد'); }
+    catch (err) { showToast('خطا: ' + err.message, 'error'); }
+});
+</script>
+{% endblock %}

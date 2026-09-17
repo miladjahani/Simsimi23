@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}داشبورد{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-white">داشبورد</h2>
+            <p class="text-dark-400 text-sm mt-1">نمای کلی سیستم</p>
+        </div>
+        <div class="text-sm text-dark-400">
+            {{ now|default('') }}
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid-stats mb-8">
+        <div class="stat-card">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-dark-400 text-sm">اینباندها</span>
+                <div class="w-8 h-8 rounded-lg bg-milijon-500/10 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-milijon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 6h14M5 18h14"/></svg>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-white">{{ stats.total_inbounds }}</div>
+            <div class="text-xs text-dark-500 mt-1">{{ stats.active_inbounds }} فعال</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-dark-400 text-sm">کاربران</span>
+                <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-8a9 9 0 00-8-9 9 9 0 00-9 9v8h5m4 0v-4a4 4 0 00-4-4 4 4 0 00-4 4v4"/></svg>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-white">{{ stats.total_clients }}</div>
+            <div class="text-xs text-dark-500 mt-1">{{ stats.active_clients }} فعال</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-dark-400 text-sm">سرورها</span>
+                <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12H3l9-9 9 9h-2M5 12v7a1 1 0 001 1h3m10-8v7a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-white">{{ stats.total_servers }}</div>
+            <div class="text-xs text-dark-500 mt-1">{{ stats.online_servers }} آنلاین</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-dark-400 text-sm">ترافیک مصرفی</span>
+                <div class="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-white" id="total-traffic">{{ stats.total_used_gb }}</div>
+            <div class="text-xs text-dark-500 mt-1">bytes</div>
+        </div>
+    </div>
+
+    <!-- Two column layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Inbounds -->
+        <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="section-title">اینباندهای اخیر</h3>
+                <a href="{{ url_for('inbounds_page') }}" class="text-xs text-milijon-400 hover:text-milijon-300">مشاهده همه</a>
+            </div>
+            {% if inbounds %}
+            <div class="space-y-2">
+                {% for ib in inbounds[:5] %}
+                <div class="flex items-center justify-between p-3 rounded-lg bg-dark-950">
+                    <div class="flex items-center gap-3">
+                        <span class="protocol-badge protocol-{{ ib.protocol }}">{{ ib.protocol|upper }}</span>
+                        <span class="transport-badge">{{ ib.transport|upper }}</span>
+                        <span class="text-sm text-dark-100">{{ ib.tag }}</span>
+                    </div>
+                    <span class="badge {{ 'badge-green' if ib.is_active else 'badge-red' }}">
+                        {{ 'فعال' if ib.is_active else 'غیرفعال' }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 6h14M5 18h14"/></svg>
+                <p>هیچ اینبندی ایجاد نشده است</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Recent Clients -->
+        <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="section-title">کاربران اخیر</h3>
+                <a href="{{ url_for('clients_page') }}" class="text-xs text-milijon-400 hover:text-milijon-300">مشاهده همه</a>
+            </div>
+            {% if clients %}
+            <div class="space-y-2">
+                {% for c in clients[:5] %}
+                <div class="flex items-center justify-between p-3 rounded-lg bg-dark-950">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-milijon-500/20 flex items-center justify-center text-xs text-milijon-400 font-bold">
+                            {{ c.email[:2]|upper if c.email else '?' }}
+                        </div>
+                        <div>
+                            <p class="text-sm text-dark-100">{{ c.email }}</p>
+                            <p class="text-xs text-dark-500">{{ c.uuid[:8] }}...</p>
+                        </div>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs text-dark-400">{{ c.used_gb }} bytes</p>
+                        <span class="badge {{ 'badge-green' if c.enable else 'badge-red' }}">
+                            {{ 'فعال' if c.enable else 'غیرفعال' }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-8a9 9 0 00-8-9 9 9 0 00-9 9v8h5m4 0v-4a4 4 0 00-4-4 4 4 0 00-4 4v4"/></svg>
+                <p>هیچ کاربری ایجاد نشده است</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Server Status -->
+    <div class="card p-5 mt-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="section-title">وضعیت سرورها</h3>
+            <a href="{{ url_for('servers_page') }}" class="text-xs text-milijon-400 hover:text-milijon-300">مدیریت</a>
+        </div>
+        {% if servers %}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for s in servers %}
+            <div class="p-4 rounded-lg bg-dark-950 border border-dark-800">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-dark-100">{{ s.name }}</span>
+                    <span class="status-dot {{ 'status-online' if s.is_online else 'status-offline' }}"></span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-dark-500">CPU</span>
+                        <span class="text-dark-200">{{ s.cpu_usage }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ s.cpu_usage }}%; background: #3395ff;"></div>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-dark-500">RAM</span>
+                        <span class="text-dark-200">{{ s.mem_usage }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ s.mem_usage }}%; background: #a855f7;"></div>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-dark-500">NET</span>
+                        <span class="text-dark-200">{{ s.net_usage }} MB/s</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ s.net_usage if s.net_usage < 100 else 100 }}%; background: #22c55e;"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12H3l9-9 9 9h-2M5 12v7a1 1 0 001 1h3m10-8v7a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <p>هیچ سروری ثبت نشده است</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Convert traffic bytes to readable format
+    document.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('total-traffic');
+        if (el) {
+            const bytes = parseInt(el.textContent);
+            el.textContent = formatBytes(bytes);
+        }
+    });
+</script>
+{% endblock %}

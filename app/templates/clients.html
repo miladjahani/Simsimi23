@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}کاربران{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-white">کاربران</h2>
+            <p class="text-dark-400 text-sm mt-1">مدیریت کاربران و کلاینت‌ها</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('create-modal')">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            ایجاد کاربر
+        </button>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-1 mb-6 border-b border-dark-800">
+        <button class="tab-btn active" data-filter="all">همه</button>
+        <button class="tab-btn" data-filter="active">فعال</button>
+        <button class="tab-btn" data-filter="inactive">غیرفعال</button>
+        <button class="tab-btn" data-filter="limited">محدود</button>
+        <button class="tab-btn" data-filter="expired">منقضی</button>
+    </div>
+
+    <!-- Clients grid -->
+    {% if clients %}
+    <div class="grid-cards">
+        {% for c in clients %}
+        <div class="client-card" data-status="{{ 'active' if c.enable else 'inactive' }}" data-limited="{{ '1' if c.total_gb > 0 else '0' }}">
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-milijon-500/20 flex items-center justify-center text-sm text-milijon-400 font-bold">
+                        {{ c.email[:2]|upper if c.email else '?' }}
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-dark-100">{{ c.email }}</p>
+                        <p class="text-xs text-dark-500 font-mono" style="direction:ltr">{{ c.uuid[:12] }}...</p>
+                    </div>
+                </div>
+                <span class="badge {{ 'badge-green' if c.enable else 'badge-red' }}">
+                    {{ 'فعال' if c.enable else 'غیرفعال' }}
+                </span>
+            </div>
+
+            <div class="space-y-2 mb-4">
+                <div class="flex justify-between text-xs">
+                    <span class="text-dark-500">ترافیک مصرفی</span>
+                    <span class="text-dark-200" id="used-{{ c.id }}">{{ c.used_gb }}</span>
+                </div>
+                {% if c.total_gb > 0 %}
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (c.used_gb / c.total_gb * 100)|round(1) if c.total_gb > 0 else 0 }}%; background: {% if (c.used_gb / c.total_gb * 100) > 80 %}#ef4444{% elif (c.used_gb / c.total_gb * 100) > 50 %}#eab308{% else %}#22c55e{% endif %};"></div>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-dark-500">حداکثر</span>
+                    <span class="text-dark-300" id="total-{{ c.id }}">{{ c.total_gb }}</span>
+                </div>
+                {% else %}
+                <div class="flex justify-between text-xs">
+                    <span class="text-dark-500">حجم</span>
+                    <span class="text-dark-300">نامحدود</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="flex justify-between text-xs mb-4 pt-3 border-t border-dark-800">
+                <div>
+                    <span class="text-dark-500">انقضا: </span>
+                    <span class="text-dark-200">{{ c.expiry_date[:10] if c.expiry_date else 'نامحدود' }}</span>
+                </div>
+                <div>
+                    <span class="text-dark-500">سابلینک: </span>
+                    <span class="text-milijon-400 font-mono" style="direction:ltr">{{ c.sub_id[:8] if c.sub_id else '-' }}...</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button class="btn btn-secondary text-xs flex-1" onclick="showLinks('{{ c.id }}')">لینک‌ها</button>
+                <button class="btn btn-secondary text-xs" onclick="resetTraffic('{{ c.id }}')">ریست</button>
+                <button class="btn btn-secondary text-xs" onclick="toggleClient('{{ c.id }}', {{ c.enable|lower }})">
+                    {{ 'غیرفعال' if c.enable else 'فعال' }}
+                </button>
+                <button class="btn btn-danger text-xs" onclick="deleteClient('{{ c.id }}')">حذف</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card p-8">
+        <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-8a9 9 0 00-8-9 9 9 0 00-9 9v8h5m4 0v-4a4 4 0 00-4-4 4 4 0 00-4 4v4"/></svg>
+            <p>هیچ کاربری ایجاد نشده است</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Create Modal -->
+    <div id="create-modal" class="modal-overlay" style="display:none">
+        <div class="modal p-6">
+            <h3 class="text-lg font-bold text-white mb-4">ایجاد کاربر پیشرفته</h3>
+            <form id="create-form" class="space-y-4">
+                <div class="form-group">
+                    <label class="label">نام / ایمیل</label>
+                    <input type="text" name="email" class="input" placeholder="user@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">اینباندها (دسترسی)</label>
+                    <div class="space-y-2 max-h-40 overflow-y-auto p-3 bg-dark-950 rounded-lg border border-dark-800">
+                        {% for ib in inbounds %}
+                        <label class="flex items-center gap-2 text-sm text-dark-200">
+                            <input type="checkbox" name="inbound_ids" value="{{ ib.id }}" class="rounded">
+                            <span class="protocol-badge protocol-{{ ib.protocol }}">{{ ib.protocol|upper }}</span>
+                            <span class="transport-badge">{{ ib.transport|upper }}</span>
+                            <span>{{ ib.tag }}</span>
+                        </label>
+                        {% else %}
+                        <p class="text-dark-500 text-sm">ابتدا یک اینباند ایجاد کنید</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="label">حجم (GB) - 0 = نامحدود</label>
+                        <input type="number" name="total_gb" class="input" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="label">انقضا (روز) - 0 = نامحدود</label>
+                        <input type="number" name="expiry_days" class="input" value="0" min="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">Telegram Chat ID (اختیاری)</label>
+                    <input type="text" name="tg_id" class="input" placeholder="123456789">
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm text-dark-200">
+                        <input type="checkbox" name="enable" checked>فعال
+                    </label>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="btn btn-primary flex-1">ایجاد کاربر</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-modal')">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Links Modal -->
+    <div id="links-modal" class="modal-overlay" style="display:none">
+        <div class="modal p-6">
+            <h3 class="text-lg font-bold text-white mb-4">لینک‌های کانفیگ</h3>
+            <div id="links-content" class="space-y-3"></div>
+            <div class="flex gap-3 pt-4">
+                <button class="btn btn-secondary" onclick="closeModal('links-modal')">بستن</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Filter
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('.client-card').forEach(card => {
+                let show = false;
+                if (filter === 'all') show = true;
+                else if (filter === 'active') show = card.dataset.status === 'active';
+                else if (filter === 'inactive') show = card.dataset.status === 'inactive';
+                else if (filter === 'limited') show = card.dataset.limited === '1';
+                else if (filter === 'expired') {
+                    // Simple check: if expiry date is in the past
+                    show = false; // Would need server-side data
+                }
+                card.style.display = show ? '' : 'none';
+            });
+        });
+    });
+
+    // Create form
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const inboundIds = formData.getAll('inbound_ids');
+        try {
+            await apiCall('/api/clients', 'POST', {
+                email: formData.get('email'),
+                inbound_ids: inboundIds,
+                enable: formData.get('enable') === 'on',
+                total_gb: parseInt(formData.get('total_gb')) * 1073741824,
+                expiry_days: parseInt(formData.get('expiry_days')),
+                tg_id: formData.get('tg_id') || '',
+            });
+            showToast('کاربر ایجاد شد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    });
+
+    async function showLinks(clientId) {
+        try {
+            const data = await apiCall(`/api/clients/${clientId}/links`);
+            const container = document.getElementById('links-content');
+            container.innerHTML = '';
+            if (data.links.length === 0) {
+                container.innerHTML = '<p class="text-dark-400 text-sm">هیچ لینکی موجود نیست. ابتدا به اینباند دسترسی دهید.</p>';
+            } else {
+                data.links.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'space-y-2';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="protocol-badge protocol-${item.inbound.protocol}">${item.inbound.protocol.toUpperCase()}</span>
+                            <span class="transport-badge">${item.inbound.transport.toUpperCase()}</span>
+                            <span class="text-xs text-dark-400">${item.inbound.tag}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <code class="code-block flex-1" style="font-size:0.75rem">${item.link}</code>
+                            <button class="copy-btn" onclick="copyToClipboard('${item.link}', this)">کپی</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+            openModal('links-modal');
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    async function resetTraffic(id) {
+        if (!confirmDelete('ریست ترافیک این کاربر؟')) return;
+        try {
+            await apiCall(`/api/clients/${id}/reset`, 'POST');
+            showToast('ترافیک ریست شد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    async function toggleClient(id, current) {
+        try {
+            await apiCall(`/api/clients/${id}`, 'PUT', { enable: !current });
+            showToast('وضعیت تغییر کرد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteClient(id) {
+        if (!confirmDelete('حذف این کاربر؟')) return;
+        try {
+            await apiCall(`/api/clients/${id}`, 'DELETE');
+            showToast('کاربر حذف شد');
+            location.reload();
+        } catch (err) {
+            showToast('خطا: ' + err.message, 'error');
+        }
+    }
+
+    // Format bytes on load
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[id^="used-"], [id^="total-"]').forEach(el => {
+            const bytes = parseInt(el.textContent);
+            if (bytes > 0) el.textContent = formatBytes(bytes);
+            else if (el.id.startsWith('total-')) el.textContent = 'نامحدود';
+            else el.textContent = '0 B';
+        });
+    });
+</script>
+{% endblock %}

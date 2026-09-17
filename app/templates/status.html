@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}صفحه وضعیت{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="mb-8 text-center">
+        <div class="inline-flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-milijon-500 to-milijon-700 flex items-center justify-center">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <h1 class="text-3xl font-bold text-white">Milijon Railway</h1>
+        </div>
+        <p class="text-dark-400">صفحه وضعیت سیستم - عمومی</p>
+    </div>
+
+    <!-- Overall status -->
+    <div class="card p-6 mb-6 text-center">
+        {% if servers and servers|selectattr('is_online')|list|length > 0 %}
+        <div class="inline-flex items-center gap-3">
+            <span class="status-dot status-online" style="width:12px;height:12px"></span>
+            <span class="text-xl font-bold text-green-400">همه سیستم‌ها عملیاتی</span>
+        </div>
+        {% else %}
+        <div class="inline-flex items-center gap-3">
+            <span class="status-dot status-offline" style="width:12px;height:12px"></span>
+            <span class="text-xl font-bold text-red-400">سیستم با مشکل مواجه است</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Servers status -->
+    <div class="grid-cards mb-6">
+        {% for s in servers %}
+        <div class="client-card">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12H3l9-9 9 9h-2M5 12v7a1 1 0 001 1h3m10-8v7a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-dark-100">{{ s.name }}</p>
+                        <p class="text-xs text-dark-500 font-mono" style="direction:ltr">{{ s.address }}:{{ s.port }}</p>
+                    </div>
+                </div>
+                <span class="badge {{ 'badge-green' if s.is_online else 'badge-red' }}">{{ 'آنلاین' if s.is_online else 'آفلاین' }}</span>
+            </div>
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs"><span class="text-dark-500">CPU</span><span class="text-dark-200">{{ s.cpu_usage }}%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width:{{ s.cpu_usage }}%;background:#3395ff"></div></div>
+                <div class="flex justify-between text-xs"><span class="text-dark-500">RAM</span><span class="text-dark-200">{{ s.mem_usage }}%</span></div>
+                <div class="progress-bar"><div class="progress-fill" style="width:{{ s.mem_usage }}%;background:#a855f7"></div></div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card p-8 col-span-full"><div class="empty-state"><p>سروری ثبت نشده است</p></div></div>
+        {% endfor %}
+    </div>
+
+    <!-- Inbounds status -->
+    <div class="card p-5">
+        <h3 class="section-title">وضعیت اینباندها</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {% for ib in inbounds %}
+            <div class="p-3 rounded-lg bg-dark-950 border border-dark-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="protocol-badge protocol-{{ ib.protocol }}">{{ ib.protocol|upper }}</span>
+                    <span class="transport-badge">{{ ib.transport|upper }}</span>
+                </div>
+                <span class="status-dot {{ 'status-online' if ib.is_active else 'status-offline' }}"></span>
+            </div>
+            {% else %}
+            <p class="text-dark-500 text-sm col-span-full text-center py-4">اینبندی موجود نیست</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
